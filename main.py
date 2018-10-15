@@ -59,66 +59,76 @@ class main_tab(QTabWidget):
         GB1.setLayout(layout)
         main_layout.addWidget(GB1)
         #Chassis_drawing_widget = Chassis_drawing(QColor(0, 0, 0))
-        Chassis_drawing_widget = gameWindow()
+        Chassis_drawing_widget = Chassis_drawing()
 
         main_layout.addWidget(Chassis_drawing_widget)
         self.Chassis_setup_tab.setLayout(main_layout)
-class gameWindow(QtGui.QWidget):
+class Chassis_drawing(QGraphicsView):
     def __init__(self, parent=None):
         QtGui.QWidget.__init__(self, parent)
 
-        self.setGeometry(300,300,1280,800)
+        #self.setGeometry(300,300,1280,800)
+        self.setFixedSize(600, 600)
+        self.scene = QGraphicsScene(self)
+        #self.scene.setSceneRect(0, 0, 500, 500)
+        self.scene.addLine(0,250,500,250)
+        self.scene.addLine(250,0,250,500)
+        self.scene.addRect(250,250,5000,5000)
 
-        self.frame = QtGui.QFrame()
-        self.frame.setFixedSize(500, 500)
-        #self.frame.setStyleSheet("background-color: rgb(200, 255, 255)")
-        self.frame.setFrameStyle(QFrame.Panel );
-        self.frame.setLineWidth(1)
-        layout=QtGui.QVBoxLayout()
-        layout.addWidget(self.frame)
-        self.setLayout(layout)
-        self.color = QColor(0, 0, 0)
-
-    def paintEvent(self, event):
-        painter = QtGui.QPainter(self)
-
-        # painter.setRenderHint(QtGui.QPainter.Antialiasing)
-        radx = 5
-        rady = radx
-        if self.color in ('red', 'green'):
-            col = QtGui.QColor(self.color)
-            painter.setPen(col)
-            painter.setBrush(col)
-        k = int(radx * 1.5)
-        center = QtCore.QPoint(250, 250)
-        painter.drawEllipse(center, radx, rady)
-
-class Chassis_drawing(QtGui.QWidget):
-    def __init__(self, color , parent=None):
-        QtGui.QWidget.__init__(self, parent)
-
-        self.color = color
+        ####
+        self.zoom = 0
 
 
-    def setColor(self,color):
-        self.color = color
-        self.update()
+        self.photo = QGraphicsPixmapItem()
+        self.scene.addItem(self.photo)
 
-    def paintEvent(self,event):
-        painter = QtGui.QPainter(self)
+        self.setTransformationAnchor(QGraphicsView.AnchorUnderMouse)
+        self.setResizeAnchor(QGraphicsView.AnchorUnderMouse)
+        #self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+        #self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+        self.setBackgroundBrush(QtGui.QBrush(QtGui.QColor(127, 127, 127)))
+        self.setFrameShape(QFrame.NoFrame)
+        ###
+        self.setScene(self.scene)
+        self.setDragMode(QGraphicsView.ScrollHandDrag)
 
-        #painter.setRenderHint(QtGui.QPainter.Antialiasing)
-        radx = 5
-        rady = radx
-        if self.color in ('red', 'green'):
-            col = QtGui.QColor(self.color)
-            painter.setPen(col)
-            painter.setBrush(col)
-        k = int(radx * 1.5)
-        center = QtCore.QPoint(100,200)
-        painter.drawEllipse(center,radx,rady)
+    def fitInView(self, scale=True):
 
+        #rect = QtCore.QRectF(self.photo.pixmap().rect())
+        rect = self.scene.sceneRect()
+        print('fitInView')
+        print(rect.width(),rect.height())
+        if not rect.isNull():
+            self.setSceneRect(rect)
 
+            unity = self.transform().mapRect(QtCore.QRectF(0, 0, 1, 1))
+            self.scale(1 / unity.width(), 1 / unity.height())
+            viewrect = self.viewport().rect()
+            scenerect = self.transform().mapRect(rect)
+            factor = min(viewrect.width() / scenerect.width(),
+                         viewrect.height() / scenerect.height())
+            self.scale(factor, factor)
+            self.zoom = 0
+
+    def wheelEvent(self, event):
+
+        if event.angleDelta().y() > 0:
+            factor = 1.25
+            self.zoom += 1
+        else:
+            factor = 0.8
+            self.zoom -= 1
+        if self.zoom > 0:
+            self.scale(factor, factor)
+        elif self.zoom == 0:
+            self.fitInView()
+        else:
+            self.zoom = 0
+
+    def mousePressEvent(self, event):
+        if self.photo.isUnderMouse():
+            self.photoClicked.emit(QtCore.QPoint(event.pos()))
+        super(Chassis_drawing, self).mousePressEvent(event)
 
 class main_widget(QWidget):
     def __init__(self, parent,settings):
